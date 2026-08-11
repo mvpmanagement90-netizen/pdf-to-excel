@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF to Excel - Online</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .upload-section {
+            margin-bottom: 30px;
+        }
+
+        .upload-label {
+            display: block;
+            margin-bottom: 15px;
+            color: #333;
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 20px;
+            background: #f5f5f5;
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .file-input-label:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .file-input-label.dragover {
+            background: #667eea;
+            color: white;
+            transform: scale(1.02);
+        }
+
+        .file-name {
+            margin-top: 10px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .file-name.selected {
+            color: #27ae60;
+            font-weight: 600;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-width: 150px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #229954;
+        }
+
+        .result-section {
+            display: none;
+            margin-top: 30px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            border-left: 4px solid #27ae60;
+        }
+
+        .result-section.show {
+            display: block;
+        }
+
+        .result-section.error {
+            border-left-color: #e74c3c;
+            background: #fef5f5;
+        }
+
+        .result-message {
+            font-size: 16px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .result-message.success {
+            color: #27ae60;
+        }
+
+        .result-message.error {
+            color: #e74c3c;
+        }
+
+        .donors-preview {
+            background: white;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .donors-preview h3 {
+            color: #333;
+            font-size: 14px;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 8px;
+        }
+
+        .donors-list {
+            list-style: none;
+            font-size: 14px;
+        }
+
+        .donors-list li {
+            padding: 8px 0;
+            color: #666;
+            border-bottom: 1px solid #eee;
+        }
+
+        .donors-list li:last-child {
+            border-bottom: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .note {
+            background: #e3f2fd;
+            border: 1px solid #90caf9;
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 20px;
+            font-size: 12px;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .note strong {
+            color: #1976d2;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 22px;
+            }
+
+            .buttons {
+                flex-direction: column;
+            }
+
+            button {
+                min-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 PDF to Excel</h1>
+            <p>Извлекайте донаторов из PDF (ОНЛАЙН)</p>
+        </div>
+
+        <div class="upload-section">
+            <label class="upload-label">Загрузите PDF файл</label>
+
+            <div class="file-input-wrapper">
+                <input type="file" id="fileInput" accept=".pdf" />
+                <label for="fileInput" class="file-input-label" id="fileLabel">
+                    <span>📄 Нажмите или перетащите PDF файл</span>
+                </label>
+            </div>
+
+            <div class="file-name" id="fileName"></div>
+        </div>
+
+        <div class="buttons">
+            <button class="btn-primary" id="processBtn" onclick="processFile()" disabled>
+                ⚙️ Обработать
+            </button>
+            <button class="btn-success" id="downloadBtn" onclick="downloadExcel()" style="display: none;">
+                ⬇️ Скачать Excel
+            </button>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <div class="loading-text">Обработка PDF...</div>
+        </div>
+
+        <div class="result-section" id="resultSection">
+            <div class="result-message" id="resultMessage"></div>
+            <div class="donors-preview" id="donorsPreview"></div>
+        </div>
+
+        <div class="note">
+            <strong>💡 Как это работает:</strong><br>
+            1. Загрузите PDF файл с вашего компьютера<br>
+            2. Приложение ищет страницу со словом "donors"<br>
+            3. Извлекает имена и фамилии<br>
+            4. Создает Excel таблицу<br>
+            5. Вы скачиваете готовый файл
+        </div>
+    </div>
+
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        const fileInput = document.getElementById('fileInput');
+        const fileLabel = document.getElementById('fileLabel');
+        const fileName = document.getElementById('fileName');
+        const processBtn = document.getElementById('processBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const loading = document.getElementById('loading');
+        const resultSection = document.getElementById('resultSection');
+        const resultMessage = document.getElementById('resultMessage');
+        const donorsPreview = document.getElementById('donorsPreview');
+
+        let currentDonors = [];
+
+        // Обработка выбора файла
+        fileInput.addEventListener('change', function(e) {
+            const file = this.files[0];
+            if (file && file.type === 'application/pdf') {
+                fileName.textContent = '✓ ' + file.name;
+                fileName.classList.add('selected');
+                processBtn.disabled = false;
+                resultSection.classList.remove('show');
+                downloadBtn.style.display = 'none';
+            } else if (file) {
+                fileName.textContent = '✗ Пожалуйста выберите PDF файл';
+                fileName.classList.remove('selected');
+                processBtn.disabled = true;
+            }
+        });
+
+        // Drag and drop
+        fileLabel.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileLabel.classList.add('dragover');
+        });
+
+        fileLabel.addEventListener('dragleave', () => {
+            fileLabel.classList.remove('dragover');
+        });
+
+        fileLabel.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileLabel.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type === 'application/pdf') {
+                fileInput.files = files;
+                fileName.textContent = '✓ ' + files[0].name;
+                fileName.classList.add('selected');
+                processBtn.disabled = false;
+                resultSection.classList.remove('show');
+                downloadBtn.style.display = 'none';
+            }
+        });
+
+        // Обработка PDF
+        async function processFile() {
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('Пожалуйста выберите PDF файл');
+                return;
+            }
+
+            loading.classList.add('show');
+            resultSection.classList.remove('show');
+            processBtn.disabled = true;
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+
+                let allText = '';
+                let foundDonors = false;
+
+                // Читаем все страницы
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const text = textContent.items.map(item => item.str).join(' ');
+                    allText += text + '\n';
+
+                    // Ищем "donors" на первых 10 страницах
+                    if (i <= 10 && text.toLowerCase().includes('donors')) {
+                        foundDonors = true;
+                    }
+                }
+
+                // Если не нашли "donors" - используем весь текст
+                const textToProcess = foundDonors ? allText : allText;
+
+                // Извлекаем имена
+                currentDonors = extractDonors(textToProcess);
+
+                loading.classList.remove('show');
+
+                if (currentDonors.length > 0) {
+                    showSuccess(currentDonors);
+                } else {
+                    showError('Донаторы не найдены. Убедитесь что в PDF есть слово "donors"');
+                }
+
+            } catch (error) {
+                loading.classList.remove('show');
+                showError('Ошибка при обработке PDF: ' + error.message);
+            } finally {
+                processBtn.disabled = false;
+            }
+        }
+
+        // Извлечение имен
+        function extractDonors(text) {
+            const pattern = /\b([А-Яа-яA-Za-z]+)\s+([А-Яа-яA-Za-z]+)\b/g;
+            const donors = new Map();
+            let match;
+
+            while ((match = pattern.exec(text)) !== null) {
+                const name = match[1];
+                const surname = match[2];
+
+                if (name.length > 2 && surname.length > 2 && /^[A-ZА-Я]/.test(name) && /^[A-ZА-Я]/.test(surname)) {
+                    const key = name + ' ' + surname;
+                    if (!donors.has(key)) {
+                        donors.set(key, [name, surname]);
+                    }
+                }
+            }
+
+            return Array.from(donors.values());
+        }
+
+        function showSuccess(donors) {
+            resultMessage.textContent = `✓ Найдено ${donors.length} донаторов`;
+            resultMessage.classList.add('success');
+            resultMessage.classList.remove('error');
+
+            const preview = donors.slice(0, 5);
+            const donorsList = preview.map((d, i) =>
+                `<li>${i + 1}. ${d[0]} ${d[1]}</li>`
+            ).join('');
+
+            donorsPreview.innerHTML = `
+                <h3>Первые 5 из ${donors.length}:</h3>
+                <ul class="donors-list">${donorsList}</ul>
+            `;
+
+            resultSection.classList.add('show');
+            resultSection.classList.remove('error');
+            downloadBtn.style.display = 'block';
+        }
+
+        function showError(error) {
+            resultMessage.textContent = '❌ ' + error;
+            resultMessage.classList.add('error');
+            resultMessage.classList.remove('success');
+            donorsPreview.innerHTML = '';
+            resultSection.classList.add('show', 'error');
+            downloadBtn.style.display = 'none';
+            currentDonors = [];
+        }
+
+        // Скачивание Excel
+        function downloadExcel() {
+            if (currentDonors.length === 0) {
+                alert('Нет данных для скачивания');
+                return;
+            }
+
+            const wb = XLSX.utils.book_new();
+            const data = [['№', 'Имя', 'Фамилия']];
+
+            currentDonors.forEach((donor, idx) => {
+                data.push([idx + 1, donor[0], donor[1]]);
+            });
+
+            const ws = XLSX.utils.aoa_to_sheet(data);
+            ws['A1'].s = { fill: { fgColor: { rgb: '4472C4' } }, font: { color: { rgb: 'FFFFFF' }, bold: true } };
+            ws['B1'].s = { fill: { fgColor: { rgb: '4472C4' } }, font: { color: { rgb: 'FFFFFF' }, bold: true } };
+            ws['C1'].s = { fill: { fgColor: { rgb: '4472C4' } }, font: { color: { rgb: 'FFFFFF' }, bold: true } };
+
+            ws['!cols'] = [{ wch: 8 }, { wch: 20 }, { wch: 20 }];
+
+            XLSX.utils.book_append_sheet(wb, ws, 'Donors');
+            XLSX.writeFile(wb, 'donors.xlsx');
+        }
+    </script>
+</body>
+</html>
